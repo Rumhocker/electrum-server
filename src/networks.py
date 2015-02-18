@@ -1,14 +1,14 @@
-# Main network and testnet3 definitions
+# Main network and testnet3 definitions updated for eMark
 
 params = {
-    'bitcoin_main': {
-        'pubkey_address': 0,
-        'script_address': 5,
-        'genesis_hash': '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f'
+    'eMark_main': {
+        'pubkey_address': 53,
+        'script_address': 30,
+        'genesis_hash': '00000ac7a13fffb72c10f6fd9a773dcf3e8388b8ffc359cee2483b1236ebcda1' 
     },
-    'bitcoin_test': {
+    'eMark_test': {
         'pubkey_address': 111,
         'script_address': 196,
-        'genesis_hash': '000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943'
+        'genesis_hash': '0000fa2783bec51b4039b29d61bd2bff61be74cdd4404f582b5b3f8fd3d15921' 
     }
 }

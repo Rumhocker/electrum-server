@@ -53,11 +53,11 @@ class BlockchainProcessor(Processor):
 
         self.dblock = threading.Lock()
 
-        self.bitcoind_url = 'http://%s:%s@%s:%s/' % (
-            config.get('bitcoind', 'bitcoind_user'),
-            config.get('bitcoind', 'bitcoind_password'),
-            config.get('bitcoind', 'bitcoind_host'),
-            config.get('bitcoind', 'bitcoind_port'))
+        self.eMarkd_url = 'http://%s:%s@%s:%s/' % (
+            config.get('eMarkd', 'eMarkd_user'),
+            config.get('eMarkd', 'eMarkd_password'),
+            config.get('eMarkd', 'eMarkd_host'),
+            config.get('eMarkd', 'eMarkd_port'))
 
         self.sent_height = 0
         self.sent_header = None
@@ -71,7 +71,7 @@ class BlockchainProcessor(Processor):
 
     def do_catch_up(self):
 
-        self.header = self.block2header(self.bitcoind('getblock', [self.storage.last_hash]))
+        self.header = self.block2header(self.eMarkd('getblock', [self.storage.last_hash]))
         self.header['utxo_root'] = self.storage.get_root_hash().encode('hex')
         self.catch_up(sync=False)
         print_log("Blockchain is up to date.")
@@ -81,7 +81,7 @@ class BlockchainProcessor(Processor):
         while not self.shared.stopped():
             self.main_iteration()
             if self.shared.paused():
-                print_log("bitcoind is responding")
+                print_log("eMarkd is responding")
                 self.shared.unpause()
             time.sleep(10)
 
@@ -101,30 +101,25 @@ class BlockchainProcessor(Processor):
             s += k+':'+"%.2f"%v+' '
         print_log(s)
 
-    def wait_on_bitcoind(self):
-        self.shared.pause()
-        time.sleep(10)
-        if self.shared.stopped():
-            # this will end the thread
-            raise
 
-    def bitcoind(self, method, params=[]):
+    def eMarkd(self, method, params=[]):
         postdata = dumps({"method": method, 'params': params, 'id': 'jsonrpc'})
         while True:
             try:
-                respdata = urllib.urlopen(self.bitcoind_url, postdata).read()
-            except:
-                print_log("cannot reach bitcoind...")
-                self.wait_on_bitcoind()
-            else:
-                r = loads(respdata)
-                if r['error'] is not None:
-                    if r['error'].get('code') == -28:
-                        print_log("bitcoind still warming up...")
-                        self.wait_on_bitcoind()
-                        continue
-                    raise BaseException(r['error'])
+                respdata = urllib.urlopen(self.eMarkd_url, postdata).read()
                 break
+            except:
+                print_log("cannot reach eMarkd...")
+                self.shared.pause()
+                time.sleep(10)
+                if self.shared.stopped():
+                    # this will end the thread
+                    raise
+                continue
+
+        r = loads(respdata)
+        if r['error'] is not None:
+            raise BaseException(r['error'])
         return r.get('result')
 
 
@@ -140,8 +135,8 @@ class BlockchainProcessor(Processor):
         }
 
     def get_header(self, height):
-        block_hash = self.bitcoind('getblockhash', [height])
-        b = self.bitcoind('getblock', [block_hash])
+        block_hash = self.eMarkd('getblockhash', [height])
+        b = self.eMarkd('getblock', [block_hash])
         return self.block2header(b)
 
     def init_headers(self, db_height):
@@ -241,7 +236,7 @@ class BlockchainProcessor(Processor):
 
     def get_mempool_transaction(self, txid):
         try:
-            raw_tx = self.bitcoind('getrawtransaction', [txid, 0])
+            raw_tx = self.eMarkd('getrawtransaction', [txid, 0])
         except:
             return None
 
@@ -302,8 +297,8 @@ class BlockchainProcessor(Processor):
 
     def get_merkle(self, tx_hash, height):
 
-        block_hash = self.bitcoind('getblockhash', [height])
-        b = self.bitcoind('getblock', [block_hash])
+        block_hash = self.eMarkd('getblockhash', [height])
+        b = self.eMarkd('getblock', [block_hash])
         tx_list = b.get('tx')
         tx_pos = tx_list.index(tx_hash)
 
@@ -406,7 +401,7 @@ class BlockchainProcessor(Processor):
 
         # add undo info
         if not revert:
-            self.storage.write_undo_info(block_height, self.bitcoind_height, undo_info)
+            self.storage.write_undo_info(block_height, self.eMarkd_height, undo_info)
 
         # add the max
         self.storage.db_undo.put('height', repr( (block_hash, block_height, self.storage.db_version) ))
@@ -535,7 +530,7 @@ class BlockchainProcessor(Processor):
 
         elif method == 'blockchain.transaction.broadcast':
             try:
-                txo = self.bitcoind('sendrawtransaction', params)
+                txo = self.eMarkd('sendrawtransaction', params)
                 print_log("sent tx:", txo)
                 result = txo
             except BaseException, e:
@@ -552,11 +547,11 @@ class BlockchainProcessor(Processor):
 
         elif method == 'blockchain.transaction.get':
             tx_hash = params[0]
-            result = self.bitcoind('getrawtransaction', [tx_hash, 0])
+            result = self.eMarkd('getrawtransaction', [tx_hash, 0])
 
         elif method == 'blockchain.estimatefee':
             num = int(params[0])
-            result = self.bitcoind('estimatefee', [num])
+            result = self.eMarkd('estimatefee', [num])
 
         else:
             raise BaseException("unknown method:%s" % method)
@@ -568,7 +563,7 @@ class BlockchainProcessor(Processor):
 
 
     def getfullblock(self, block_hash):
-        block = self.bitcoind('getblock', [block_hash])
+        block = self.eMarkd('getblock', [block_hash])
 
         rawtxreq = []
         i = 0
@@ -582,9 +577,9 @@ class BlockchainProcessor(Processor):
 
         postdata = dumps(rawtxreq)
         try:
-            respdata = urllib.urlopen(self.bitcoind_url, postdata).read()
+            respdata = urllib.urlopen(self.eMarkd_url, postdata).read()
         except:
-            logger.error("bitcoind error (getfullblock)",exc_info=True)
+            logger.error("eMarkd error (getfullblock)",exc_info=True)
             self.shared.stop()
 
         r = loads(respdata)
@@ -592,7 +587,7 @@ class BlockchainProcessor(Processor):
         for ir in r:
             if ir['error'] is not None:
                 self.shared.stop()
-                print_log("Error: make sure you run bitcoind with txindex=1; use -reindex if needed.")
+                print_log("Error: make sure you run eMarkd with txindex=1; use -reindex if needed.")
                 raise BaseException(ir['error'])
             rawtxdata.append(ir['result'])
         block['tx'] = rawtxdata
@@ -606,10 +601,10 @@ class BlockchainProcessor(Processor):
             self.mtime('')
 
             # are we done yet?
-            info = self.bitcoind('getinfo')
-            self.bitcoind_height = info.get('blocks')
-            bitcoind_block_hash = self.bitcoind('getblockhash', [self.bitcoind_height])
-            if self.storage.last_hash == bitcoind_block_hash:
+            info = self.eMarkd('getinfo')
+            self.eMarkd_height = info.get('blocks')
+            eMarkd_block_hash = self.eMarkd('getblockhash', [self.eMarkd_height])
+            if self.storage.last_hash == eMarkd_block_hash:
                 self.up_to_date = True
                 break
 
@@ -619,7 +614,7 @@ class BlockchainProcessor(Processor):
             # not done..
             self.up_to_date = False
             try:
-                next_block_hash = self.bitcoind('getblockhash', [self.storage.height + 1])
+                next_block_hash = self.eMarkd('getblockhash', [self.storage.height + 1])
                 next_block = self.getfullblock(next_block_hash)
             except BaseException, e:
                 revert = True
@@ -664,7 +659,7 @@ class BlockchainProcessor(Processor):
                     prev_root_hash = None
 
 
-        self.header = self.block2header(self.bitcoind('getblock', [self.storage.last_hash]))
+        self.header = self.block2header(self.eMarkd('getblock', [self.storage.last_hash]))
         self.header['utxo_root'] = self.storage.get_root_hash().encode('hex')
 
         if self.shared.stopped(): 
@@ -673,7 +668,7 @@ class BlockchainProcessor(Processor):
 
 
     def memorypool_update(self):
-        mempool_hashes = set(self.bitcoind('getrawmempool'))
+        mempool_hashes = set(self.eMarkd('getrawmempool'))
         touched_addresses = set([])
 
         # get new transactions

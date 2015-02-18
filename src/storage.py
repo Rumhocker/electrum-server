@@ -8,7 +8,7 @@ from processor import print_log, logger
 from utils import bc_address_to_hash_160, hash_160_to_pubkey_address, hex_to_int, int_to_hex, Hash
 
 global GENESIS_HASH
-GENESIS_HASH = '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f'
+GENESIS_HASH = '00000ac7a13fffb72c10f6fd9a773dcf3e8388b8ffc359cee2483b1236ebcda1'  
 
 """
 Patricia tree for hashing unspents
@@ -105,7 +105,7 @@ class Storage(object):
     def listunspent(self, addr):
         key = self.address_to_key(addr)
         if key is None:
-            raise BaseException('Invalid Bitcoin address', addr)
+            raise BaseException('Invalid eMark address', addr)
 
         out = []
         for k, v in self.db_utxo.iterator(start=key):
@@ -161,8 +161,8 @@ class Storage(object):
         return eval(s)
 
 
-    def write_undo_info(self, height, bitcoind_height, undo_info):
-        if height > bitcoind_height - 100 or self.test_reorgs:
+    def write_undo_info(self, height, eMarkd_height, undo_info):
+        if height > eMarkd_height - 100 or self.test_reorgs:
             self.db_undo.put("undo_info_%d" % (height % 100), repr(undo_info))
 
 

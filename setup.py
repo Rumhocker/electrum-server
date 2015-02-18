@@ -22,12 +22,12 @@ setup(
         'electrumserver.stratum_tcp',
         'electrumserver.stratum_http'
     ],
-    description="Bitcoin Electrum Server",
+    description="eMark Electrum Server",
     author="Thomas Voegtlin",
     author_email="thomasv1@gmx.de",
     license="GNU Affero GPLv3",
     url="https://github.com/spesmilo/electrum-server/",
-    long_description="""Server for the Electrum Lightweight Bitcoin Wallet"""
+    long_description="""Server for the Electrum Lightweight eMark Wallet"""
 )
 
 
